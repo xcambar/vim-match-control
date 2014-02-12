@@ -13,15 +13,15 @@
 
 
 " File: match-control.vim
-" Author: Dirk Wallenstein
+" Author: Dirk Wallenstein, Xavier Cambar
 " Description: A frontend to matchadd()
 " License: LGPLv3
 " Version: 0.0.1
 
-if exists('loaded_match_control')
+if exists('g:loaded_match_control')
     finish
 endif
-let loaded_match_control = 1
+let g:loaded_match_control = 1
 
 
 "
@@ -569,7 +569,7 @@ endfun
 
 " The entry point:
 autocmd WinEnter,BufWinEnter,ColorScheme * call <SID>SyncAllMatchControls()
-autocmd FileType * call g:MC_ReInitBufferForAllMatchControls()
+autocmd FileType * call g:MC_Reset()
 " Insert mode matches are added/removed by autocommands:
 autocmd InsertEnter * call <SID>SwitchModeForAllMatchControls("insert")
 autocmd InsertLeave * call <SID>SwitchModeForAllMatchControls("normal")
@@ -597,7 +597,21 @@ fun g:MC_GetMatchControl(id)
     throw "NoSuchId: no instance recorded for the id: " . a:id
 endfun
 
-fun g:MC_ReInitBufferForAllMatchControls()
+if exists('g:mc_patterns')
+  let s:c = 0
+  for pattern in g:mc_patterns
+    let mc = g:MC_CreateMatchControl(s:c . '') "it requires a string
+    let current =  len(keys(pattern))
+    while current > 0
+      let mc[keys(pattern)[current - 1]] = values(pattern)[current - 1]
+      let current -= 1
+    endwhile
+    let s:c += 1
+  endfor
+
+endif
+
+fun g:MC_Reset()
     " Depending on how a buffer is created the autocommands above might not
     " be executed in the final state.  For example, if a new buffer is
     " incrementally equipped with further options but not a filetype, your
@@ -618,17 +632,3 @@ com -nargs=1 MatchControlShow call
         \ <SID>ExecuteMethod(s:MatchControl.Show, [], <f-args>)
 com -nargs=1 MatchControlHide call
         \ <SID>ExecuteMethod(s:MatchControl.Hide, [], <f-args>)
-
-" Commands to work with the first active pattern.  You can use the method
-" GetActivePattern() to implement such operations on patterns other than at
-" index 0 or instantiate a match control for every pattern you want to work
-" with.  All commands take the id of the match-control as first argument.
-com -nargs=1 MatchControlSearchFirstActivePattern call <SID>ExecuteMethod(
-        \ s:MatchControl.SearchFirstActivePattern, [], <f-args>)
-com -nargs=1 -range=% MatchControlDeleteFirstActivePattern call
-        \ <SID>ReplaceFirstActivePatternOfInstance(
-                \ <line1>, <line2>, <f-args>, '')
-" This command additionally takes a replacement as second argument
-com -nargs=* -range=% MatchControlReplaceFirstActivePattern call
-        \ <SID>ReplaceFirstActivePatternOfInstance(
-                \ <line1>, <line2>, <f-args>)
